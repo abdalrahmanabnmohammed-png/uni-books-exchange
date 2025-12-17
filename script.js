@@ -1,6 +1,6 @@
 // إعدادات Supabase - ضع بياناتك هنا
-const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-const SUPABASE_KEY = 'YOUR_ANON_KEY';
+const SUPABASE_URL = 'https://neixwfpciartajaxlwzd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5laXh3ZnBjaWFydGFqYXhsd3pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODk2ODQsImV4cCI6MjA4MTU2NTY4NH0._gNz7ZFMKm7ChStQdwor2HqZ1ba0oGCPYh_K6oYZNKA';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
