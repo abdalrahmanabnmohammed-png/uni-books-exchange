@@ -1,25 +1,22 @@
-body {
-    font-family: 'Tajawal', sans-serif;
-    scroll-behavior: smooth;
+body { font-family: 'Tajawal', sans-serif; }
+
+.scale-up {
+    animation: scaleUp 0.3s ease-out forwards;
 }
 
-/* تأثير عند تمرير الفأرة على كروت الكتب */
+@keyframes scaleUp {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
 .book-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .book-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-/* تخصيص الـ Modal */
-.modal-active {
-    display: flex !important;
-    animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
+#msgContainer::-webkit-scrollbar { width: 4px; }
+#msgContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
