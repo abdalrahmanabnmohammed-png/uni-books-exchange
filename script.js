@@ -1,49 +1,103 @@
-// إعدادات Supabase (سنضع المفاتيح لاحقاً)
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// إعدادات Supabase - ضع بياناتك هنا
+const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_KEY = 'YOUR_ANON_KEY';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// وظيفة فتح وإغلاق النوافذ
-function toggleModal(id) {
-    const modal = document.getElementById(id);
-    modal.classList.toggle('hidden');
-    modal.classList.toggle('modal-active');
-}
+let currentUser = null;
+let activeReceiverId = null;
 
-// وظيفة التحقق قبل القيام بعمل (مثل المراسلة أو الإضافة)
-function checkAuthForAction() {
-    const user = supabase.auth.user();
-    if (!user) {
-        alert("عذراً، يجب عليك تسجيل الدخول برقم الهاتف لتتمكن من القيام بهذا الإجراء.");
-        toggleModal('loginModal');
-    } else {
-        // توجيه لصفحة إضافة الكتاب أو فتح الدردشة
-        console.log("المستخدم مسجل دخول");
+// تشغيل عند تحميل الصفحة
+window.onload = async () => {
+    checkUser();
+    loadBooks();
+};
+
+async function checkUser() {
+    const { data } = await _supabase.auth.getUser();
+    if (data?.user) {
+        currentUser = data.user;
+        document.getElementById('loginBtnNav').innerText = "خروج";
+        document.getElementById('loginBtnNav').onclick = () => _supabase.auth.signOut().then(() => location.reload());
     }
 }
 
-// عرض كتب تجريبية (للتوضيح فقط)
-const dummyBooks = [
-    { title: "أساسيات البرمجة", univ: "جامعة الملك سعود", price: 40, img: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&q=80&w=400" },
-    { title: "كيمياء 101", univ: "جامعة القاهرة", price: 25, img: "https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=400" },
-    { title: "محاسبة مالية", univ: "جامعة عفت", price: 60, img: "https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?auto=format&fit=crop&q=80&w=400" }
-];
+// وظائف تسجيل الدخول
+async function handleAuth() {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passInput').value;
 
-function displayBooks() {
+    const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) { // إذا لم يجد حساب، ينشئ حساب جديد
+        const { error: signUpErr } = await _supabase.auth.signUp({ email, password });
+        if (signUpErr) alert(signUpErr.message);
+        else alert("تم إنشاء الحساب! تحقق من إيميلك.");
+    } else {
+        location.reload();
+    }
+}
+
+// تحميل الكتب
+async function loadBooks() {
+    const { data: books, error } = await _supabase.from('books').select('*');
+    if (books) renderBooks(books);
+}
+
+function renderBooks(books) {
     const grid = document.getElementById('booksGrid');
-    grid.innerHTML = dummyBooks.map(book => `
-        <div class="bg-white rounded-2xl book-card overflow-hidden shadow-sm border border-gray-100">
-            <img src="${book.img}" class="w-full h-48 object-cover">
+    grid.innerHTML = books.map(book => `
+        <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 book-card">
+            <img src="${book.image_url || 'https://via.placeholder.com/300'}" class="w-full h-48 object-cover">
             <div class="p-5">
-                <h4 class="font-bold text-lg mb-1">${book.title}</h4>
-                <p class="text-gray-500 text-sm mb-4">${book.univ}</p>
+                <span class="text-xs font-bold text-blue-500 uppercase">${book.college || 'عام'}</span>
+                <h4 class="font-bold text-lg mt-1">${book.title}</h4>
+                <p class="text-gray-500 text-sm mb-4">${book.university}</p>
                 <div class="flex justify-between items-center">
-                    <span class="text-blue-600 font-bold">${book.price} ريال</span>
-                    <button onclick="checkAuthForAction()" class="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-50 transition">تواصل</button>
+                    <span class="text-green-600 font-bold">${book.price} ريال</span>
+                    <button onclick="openChat('${book.seller_id}', '${book.title}')" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-600 hover:text-white transition">مراسلة</button>
                 </div>
             </div>
         </div>
     `).join('');
 }
 
-window.onload = displayBooks;
+// نظام الدردشة
+async function openChat(sellerId, title) {
+    if (!currentUser) { toggleModal('loginModal'); return; }
+    if (currentUser.id === sellerId) { alert("هذا كتابك!"); return; }
+
+    activeReceiverId = sellerId;
+    document.getElementById('chatTitle').innerText = title;
+    document.getElementById('chatBox').classList.remove('hidden');
+    
+    fetchMessages();
+    // تفعيل التحديث اللحظي
+    _supabase.channel('messages').on('postgres_changes', { event: 'INSERT', schema: 'public' }, fetchMessages).subscribe();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('msgInput');
+    if (!input.value) return;
+
+    await _supabase.from('messages').insert([
+        { sender_id: currentUser.id, receiver_id: activeReceiverId, content: input.value }
+    ]);
+    input.value = '';
+}
+
+async function fetchMessages() {
+    const { data: msgs } = await _supabase.from('messages').select('*')
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${activeReceiverId}),and(sender_id.eq.${activeReceiverId},receiver_id.eq.${currentUser.id})`)
+        .order('created_at', { ascending: true });
+
+    const container = document.getElementById('msgContainer');
+    container.innerHTML = msgs.map(m => `
+        <div class="max-w-[80%] p-2 rounded-lg ${m.sender_id === currentUser.id ? 'bg-blue-600 text-white self-end' : 'bg-white border self-start'}">
+            ${m.content}
+        </div>
+    `).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
+function toggleChat() { document.getElementById('chatBox').classList.toggle('hidden'); }
