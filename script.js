@@ -31,7 +31,7 @@ async function handleAuth() {
     if (error) { // إذا لم يجد حساب، ينشئ حساب جديد
         const { error: signUpErr } = await _supabase.auth.signUp({ email, password });
         if (signUpErr) alert(signUpErr.message);
-        else alert("تم إنشاء الحساب! تحقق من إيميلك.");
+        else alert("تم إنشاء الحساب! تحقق من البريد الالكتروني.");
     } else {
         location.reload();
     }
